@@ -1,0 +1,9 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+COPY packages/ ./packages/
+COPY frontend/ ./frontend/
+COPY backend/ ./backend/
+COPY security-lab/ ./security-lab/
+RUN npm install
+# We don't run a command here, docker-compose will override it

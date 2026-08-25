@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: webguard-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: webguard-api
+    command: npm run dev --workspace=backend
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/webguard
+      - PORT=3001
+    depends_on:
+      - mongodb
+    volumes:
+      - ./backend:/app/backend
+      - ./packages:/app/packages
+
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: webguard-web
+    command: npm run dev --workspace=frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app/frontend
+    depends_on:
+      - api
+
+  security-lab:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: webguard-security-lab
+    command: npm run dev --workspace=security-lab
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./security-lab:/app/security-lab
+
+volumes:
+  mongodb_data:

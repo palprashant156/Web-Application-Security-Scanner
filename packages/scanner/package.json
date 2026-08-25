@@ -1,0 +1,23 @@
+{
+  "name": "@webguard/scanner",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@webguard/shared": "*",
+    "axios": "^1.6.8",
+    "cheerio": "^1.2.0",
+    "p-limit": "^3.1.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.8",
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.11"
+  }
+}

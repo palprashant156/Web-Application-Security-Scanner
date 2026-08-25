@@ -2,10 +2,15 @@ import { AxiosResponse } from 'axios';
 import { Finding } from '@webguard/shared';
 import { ScannerHttpClient } from '../http/client';
 
+export interface CancellationToken {
+  isCancelled: boolean;
+}
+
 export interface ScannerContext {
   url: string;
   response: AxiosResponse;
   bodyString: string;
+  cancellationToken?: CancellationToken;
 }
 
 export interface ScannerModule {
@@ -18,20 +23,22 @@ export interface FormScannerContext {
   action: string;
   method: string;
   inputs: string[];
+  cancellationToken?: CancellationToken;
 }
 
 export interface FormScannerModule {
   name: string;
-  run(context: FormScannerContext): Finding[];
+  run(context: FormScannerContext): Finding[] | Promise<Finding[]>;
 }
 
 export interface ActiveScannerContext {
   url: string;
   parameter: string;
   client: ScannerHttpClient;
+  cancellationToken?: CancellationToken;
 }
 
 export interface ActiveScannerModule {
   name: string;
-  run(context: ActiveScannerContext): Promise<Finding[]>;
+  run(context: ActiveScannerContext): Promise<Finding[]> | Finding[];
 }

@@ -1,11 +1,14 @@
 import * as cheerio from 'cheerio';
 import pLimit from 'p-limit';
 import { ScannerHttpClient } from '../http/client';
+import { CancellationToken } from '../engine/types';
 
 export interface CrawlerOptions {
   maxDepth?: number;
   maxPages?: number;
   concurrency?: number;
+  delayMs?: number;
+  cancellationToken?: CancellationToken;
 }
 
 export interface CrawlResult {
@@ -28,12 +31,16 @@ export class Crawler {
   private parameters: Set<string> = new Set();
   private endpoints: Set<string> = new Set();
   private requestsMade = 0;
+  private cancellationToken?: CancellationToken;
+  private delayMs?: number;
 
   constructor(client: ScannerHttpClient, options: CrawlerOptions = {}) {
     this.client = client;
     this.maxDepth = options.maxDepth || 3;
     this.maxPages = options.maxPages || 20; // Keep small for safe testing
     this.concurrency = options.concurrency || 2;
+    this.cancellationToken = options.cancellationToken;
+    this.delayMs = options.delayMs;
   }
 
   /**
@@ -72,15 +79,23 @@ export class Crawler {
     this.visitedUrls.add(currentDepthUrls[0]);
     this.endpoints.add(currentDepthUrls[0]);
 
-    for (let depth = 0; depth <= this.maxDepth; depth++) {
-      if (currentDepthUrls.length === 0 || this.pages.length >= this.maxPages) break;
+    let currentDepth = 0;
+
+    while (currentDepthUrls.length > 0 && currentDepth <= this.maxDepth) {
+      if (this.cancellationToken?.isCancelled) {
+        break; // Stop crawling if cancelled
+      }
 
       const nextDepthUrls = new Set<string>();
 
       const fetchPromises = currentDepthUrls.map(url => limit(async () => {
+        if (this.cancellationToken?.isCancelled) return;
         if (this.pages.length >= this.maxPages) return;
         
         try {
+          if (this.delayMs) {
+            await new Promise(res => setTimeout(res, this.delayMs));
+          }
           this.requestsMade++;
           const response = await this.client.get(url);
           this.pages.push(url);
@@ -152,6 +167,7 @@ export class Crawler {
 
       await Promise.all(fetchPromises);
       currentDepthUrls = Array.from(nextDepthUrls);
+      currentDepth++;
     }
 
     return {

@@ -93,6 +93,18 @@ export default function Home() {
     }
   };
 
+  const stopScan = async () => {
+    if (!scanId) return;
+    try {
+      await fetch(`http://localhost:3001/api/scans/${scanId}/cancel`, {
+        method: 'POST'
+      });
+      // The polling will pick up the 'CANCELLED' status
+    } catch (e) {
+      console.error('Failed to stop scan', e);
+    }
+  };
+
   const loadOldScan = async (id: string) => {
     setError(null);
     setScanId(id);
@@ -104,7 +116,7 @@ export default function Home() {
       const scanData = await scanRes.json();
       setScan(scanData);
       
-      if (scanData.status === 'COMPLETED') {
+      if (scanData.status === 'COMPLETED' || scanData.status === 'CANCELLED') {
         const findingsRes = await fetch(`http://localhost:3001/api/scans/${id}/findings`);
         if (findingsRes.ok) {
           setFindings(await findingsRes.json());
@@ -157,7 +169,8 @@ export default function Home() {
                   <span className="font-medium truncate block max-w-[150px]">{h.target}</span>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                     h.status === 'COMPLETED' ? 'bg-emerald-900 text-emerald-400' :
-                    h.status === 'FAILED' ? 'bg-red-900 text-red-400' : 'bg-blue-900 text-blue-400'
+                    h.status === 'FAILED' ? 'bg-red-900 text-red-400' :
+                    h.status === 'CANCELLED' ? 'bg-gray-700 text-gray-300' : 'bg-blue-900 text-blue-400'
                   }`}>
                     {h.status}
                   </span>
@@ -184,7 +197,7 @@ export default function Home() {
               <p className="text-slate-400 print:hidden">Web Application Security Assessment Platform</p>
             </div>
             
-            {scan?.status === 'COMPLETED' && (
+            {(scan?.status === 'COMPLETED' || scan?.status === 'CANCELLED') && (
               <button 
                 onClick={() => window.print()}
                 className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded font-semibold print:hidden"
@@ -205,13 +218,22 @@ export default function Home() {
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
               />
-              <button 
-                type="submit"
-                disabled={scan?.status === 'RUNNING'}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
-              >
-                {scan?.status === 'RUNNING' ? 'Scanning...' : 'Start Scan'}
-              </button>
+              {scan?.status === 'RUNNING' ? (
+                <button 
+                  type="button"
+                  onClick={stopScan}
+                  className="bg-red-600 hover:bg-red-500 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+                >
+                  Stop Scan
+                </button>
+              ) : (
+                <button 
+                  type="submit"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+                >
+                  Start Scan
+                </button>
+              )}
             </form>
             {error && <p className="text-red-400 mt-4">{error}</p>}
           </div>
@@ -239,6 +261,7 @@ export default function Home() {
                     <div className={`inline-block px-3 py-1 rounded-full text-sm font-bold tracking-wider mb-2 print:border print:bg-white print:text-black ${
                       scan.status === 'COMPLETED' ? 'bg-emerald-900 text-emerald-400' :
                       scan.status === 'FAILED' ? 'bg-red-900 text-red-400' :
+                      scan.status === 'CANCELLED' ? 'bg-gray-700 text-gray-300' :
                       'bg-blue-900 text-blue-400'
                     }`}>
                       {scan.status}

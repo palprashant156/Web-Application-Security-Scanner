@@ -58,22 +58,29 @@ export class ScannerEngine {
   /**
    * Run a full scan (Crawler -> Passive -> Active)
    */
-  public async runFullScan(targetUrl: string): Promise<ScanResult> {
+  public async runFullScan(targetUrl: string, cancellationToken?: { isCancelled: boolean }): Promise<ScanResult> {
     let allFindings: Finding[] = [];
     
     // 1. Crawl the target
+    if (this.crawlerOptions) {
+      this.crawlerOptions.cancellationToken = cancellationToken;
+    } else {
+      this.crawlerOptions = { cancellationToken };
+    }
     const crawler = new Crawler(this.client, this.crawlerOptions);
     const crawlStats = await crawler.crawl(targetUrl);
 
     // 2. Run passive checks on all discovered endpoints
     for (const endpoint of crawlStats.endpoints) {
+      if (cancellationToken?.isCancelled) break;
       try {
         const response = await this.client.get(endpoint);
         const bodyString = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
 
-        const context: ScannerContext = { url: endpoint, response, bodyString };
+        const context: ScannerContext = { url: endpoint, response, bodyString, cancellationToken };
         
         for (const module of this.passiveModules) {
+          if (cancellationToken?.isCancelled) break;
           try {
             const findings = await module.run(context);
             allFindings = allFindings.concat(findings);
@@ -88,13 +95,16 @@ export class ScannerEngine {
 
     // 3. Run active checks on all discovered parameters
     for (const paramData of crawlStats.parameters) {
+      if (cancellationToken?.isCancelled) break;
       const context: ActiveScannerContext = {
         url: paramData.url,
         parameter: paramData.param,
-        client: this.client
+        client: this.client,
+        cancellationToken
       };
 
       for (const module of this.activeModules) {
+        if (cancellationToken?.isCancelled) break;
         try {
           const findings = await module.run(context);
           allFindings = allFindings.concat(findings);
@@ -106,9 +116,15 @@ export class ScannerEngine {
 
     // 4. Run form modules on all discovered forms
     for (const formData of crawlStats.forms) {
+       if (cancellationToken?.isCancelled) break;
+       const context: FormScannerContext = {
+         ...formData,
+         cancellationToken
+       };
        for (const module of this.formModules) {
+         if (cancellationToken?.isCancelled) break;
          try {
-           const findings = await module.run(formData);
+           const findings = await module.run(context);
            allFindings = allFindings.concat(findings);
          } catch (e) {
            console.error(`Form module ${module.name} failed on ${formData.url}:`, e);

@@ -117,13 +117,60 @@ app.get('/api/scans/:id/findings', async (req, res) => {
   }
 });
 
+// Global map to track active scans and their cancellation tokens
+const activeScans = new Map<string, { isCancelled: boolean }>();
+
+/**
+ * Cancel an active scan
+ */
+app.post('/api/scans/:id/cancel', async (req, res) => {
+  const scanId = req.params.id;
+  try {
+    const scan = await Scan.findById(scanId);
+    if (!scan) return res.status(404).json({ error: 'Scan not found' });
+    if (scan.status !== 'RUNNING') return res.status(400).json({ error: 'Scan is not running' });
+
+    const token = activeScans.get(scanId);
+    if (token) {
+      token.isCancelled = true;
+    }
+
+    scan.status = 'CANCELLED';
+    scan.completedAt = new Date();
+    await scan.save();
+
+    res.json({ message: 'Scan cancelled successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to cancel scan' });
+  }
+});
+
 async function runScanAsync(scanId: string, targetUrl: string) {
   try {
     const scan = await Scan.findById(scanId);
     if (!scan) return;
 
+    // Create cancellation token
+    const cancellationToken = { isCancelled: false };
+    activeScans.set(scanId, cancellationToken);
+
     // Run full scanner engine (Crawler -> Passive -> Active)
-    const scanResult = await scanner.runFullScan(targetUrl);
+    const scanResult = await scanner.runFullScan(targetUrl, cancellationToken);
+    
+    // Remove from active scans
+    activeScans.delete(scanId);
+
+    // If cancelled during execution, don't overwrite the status if the cancel endpoint already did
+    const latestScan = await Scan.findById(scanId);
+    if (latestScan?.status === 'CANCELLED' || cancellationToken.isCancelled) {
+      if (latestScan && latestScan.status !== 'CANCELLED') {
+         latestScan.status = 'CANCELLED';
+         latestScan.completedAt = new Date();
+         await latestScan.save();
+      }
+      return;
+    }
+
     const rawFindings = scanResult.findings;
     
     // Compute severity summary
@@ -155,6 +202,7 @@ async function runScanAsync(scanId: string, targetUrl: string) {
     await scan.save();
 
   } catch (error: any) {
+    activeScans.delete(scanId);
     console.error(`Scan failed for ${targetUrl}:`, error);
     await Scan.findByIdAndUpdate(scanId, {
       status: 'FAILED',

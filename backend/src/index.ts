@@ -34,6 +34,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'webguard-api', message: 'Backend is running!' });
 });
 
+// Root health check (useful for hosting providers like Render/Heroku to keep the app awake)
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 /**
  * List historical scans
  */

@@ -22,7 +22,7 @@ export default function Home() {
   // Fetch scan history on mount
   const fetchHistory = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/scans');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scans`);
       if (res.ok) {
         setHistory(await res.json());
       }
@@ -42,12 +42,12 @@ export default function Home() {
     if (scanId && (!scan || scan.status === 'RUNNING' || scan.status === 'PENDING')) {
       interval = setInterval(async () => {
         try {
-          const res = await fetch(`http://localhost:3001/api/scans/${scanId}`);
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scans/${scanId}`);
           const data = await res.json();
           if (res.ok) {
             setScan(data);
             if (data.status === 'COMPLETED') {
-              const findingsRes = await fetch(`http://localhost:3001/api/scans/${scanId}/findings`);
+              const findingsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scans/${scanId}/findings`);
               if (findingsRes.ok) {
                 setFindings(await findingsRes.json());
                 fetchHistory(); 
@@ -75,7 +75,7 @@ export default function Home() {
     setSeverityFilter('ALL');
 
     try {
-      const res = await fetch('http://localhost:3001/api/scans', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scans`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetUrl })
@@ -96,7 +96,7 @@ export default function Home() {
   const stopScan = async () => {
     if (!scanId) return;
     try {
-      await fetch(`http://localhost:3001/api/scans/${scanId}/cancel`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scans/${scanId}/cancel`, {
         method: 'POST'
       });
       // The polling will pick up the 'CANCELLED' status
@@ -111,13 +111,13 @@ export default function Home() {
     setSearchTerm('');
     setSeverityFilter('ALL');
     
-    const scanRes = await fetch(`http://localhost:3001/api/scans/${id}`);
+    const scanRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scans/${id}`);
     if (scanRes.ok) {
       const scanData = await scanRes.json();
       setScan(scanData);
       
       if (scanData.status === 'COMPLETED' || scanData.status === 'CANCELLED') {
-        const findingsRes = await fetch(`http://localhost:3001/api/scans/${id}/findings`);
+        const findingsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scans/${id}/findings`);
         if (findingsRes.ok) {
           setFindings(await findingsRes.json());
         }

@@ -280,7 +280,7 @@ export default function Home() {
                       <div key={sev} className="flex items-center gap-2 bg-black font-mono px-4 py-2 rounded-lg border border-green-900/50 print:bg-white print:border-gray-300">
                         <div className={`w-3 h-3 rounded-full ${getSeverityColor(sev).split(' ')[0]}`}></div>
                         <span className="font-semibold text-green-500 print:text-gray-800">{sev}</span>
-                        <span className="text-white font-bold print:text-black">{count}</span>
+                        <span className="text-white font-bold print:text-black">{count as number}</span>
                       </div>
                     ))}
                   </div>
